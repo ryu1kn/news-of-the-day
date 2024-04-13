@@ -5,7 +5,9 @@ from aws_cdk import (
     CfnTag,
     Tags,
     aws_iam,
-    aws_redshiftserverless as redshiftserverless
+    aws_redshiftserverless as redshiftserverless,
+    aws_s3,
+    RemovalPolicy,
 )
 from constructs import Construct
 
@@ -48,5 +50,10 @@ class InfraStack(Stack):
             namespace_name=cfn_namespace.namespace_name,
             tags=[self.tag_system]
         )
-
         cfn_workgroup.node.add_dependency(cfn_namespace)
+
+        bucket = aws_s3.Bucket(self, "NewsBucket",
+            bucket_name="newsoftheday-news",
+            removal_policy=RemovalPolicy.DESTROY
+        )
+        Tags.of(bucket).add(self.tag_system.key, self.tag_system.value)
