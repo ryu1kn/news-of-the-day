@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
-import aws_cdk as cdk
+from aws_cdk import App, Tags
 
 from infra.infra_stack import InfraStack
 
-app = cdk.App()
-InfraStack(app, "newsoftheday-infra",
+app = App()
+
+stack = InfraStack(app, "newsoftheday-infra",
     # If you don't specify 'env', this stack will be environment-agnostic.
     # Account/Region-dependent features and context lookups will not work,
     # but a single synthesized template can be deployed anywhere.
@@ -22,5 +23,7 @@ InfraStack(app, "newsoftheday-infra",
 
     # For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html
     )
+
+Tags.of(stack).add("system", "news-of-the-day")
 
 app.synth()
