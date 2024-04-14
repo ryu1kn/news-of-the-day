@@ -2,6 +2,7 @@ import os
 
 from aws_cdk import (
     Stack,
+    aws_glue,
     aws_iam,
     aws_redshiftserverless as redshiftserverless,
     aws_s3,
@@ -45,7 +46,46 @@ class InfraStack(Stack):
         )
         cfn_workgroup.node.add_dependency(cfn_namespace)
 
-        aws_s3.Bucket(self, "NewsBucket",
+        news_bucket = aws_s3.Bucket(self, "NewsBucket",
             bucket_name="newsoftheday-news",
             removal_policy=RemovalPolicy.DESTROY
         )
+
+        cfn_glue_database = aws_glue.CfnDatabase(self, "GlueDatabase",
+            catalog_id=self.account,
+            database_input=aws_glue.CfnDatabase.DatabaseInputProperty(name="newsoftheday-news")
+        )
+
+        glue_role = aws_iam.Role(
+            self,
+            "GlueRole",
+            role_name="newsoftheday-glue-role",
+
+            assumed_by=aws_iam.CompositePrincipal(
+                aws_iam.ServicePrincipal("glue.amazonaws.com")
+            ),
+            managed_policies=[aws_iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSGlueServiceRole")],
+            inline_policies={
+                "S3BucketAccessPolicy": aws_iam.PolicyDocument(
+                    statements=[
+                        aws_iam.PolicyStatement(
+                            actions=["s3:GetObject", "s3:PutObject"],
+                            effect=aws_iam.Effect.ALLOW,
+                            resources=[news_bucket.arn_for_objects("digests/*")]
+                        )
+                    ]
+                )
+            }
+        )
+
+        aws_glue.CfnCrawler(self, "GlueTable",
+            name="newsoftheday-news-digests-crawler",
+            role=glue_role.role_arn,
+            database_name=cfn_glue_database.database_input.name,
+            targets=aws_glue.CfnCrawler.TargetsProperty(
+                s3_targets=[aws_glue.CfnCrawler.S3TargetProperty(
+                    path=news_bucket.s3_url_for_object("digests")
+                )]
+            )
+        )
+
